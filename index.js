@@ -2,6 +2,7 @@ import express from 'express';
 import fetch from 'node-fetch';
 import { createCanvas, loadImage, registerFont } from 'canvas';
 import dotenv from 'dotenv';
+import path from 'path';
 
 dotenv.config();
 
@@ -16,31 +17,51 @@ if (!UNSPLASH_ACCESS_KEY) {
   process.exit(1);
 }
 
+const WIDTH = 1080;
+const HEIGHT = 1080;
+const FALLBACK_IMAGE_PATH = path.resolve('./fallback.jpg');
+
 app.get('/generate', async (req, res) => {
   const quoteText = req.query.quote || 'Life is what happens when you’re busy making other plans.';
   const authorName = req.query.author || 'John Lennon';
 
-  const width = 1080;
-  const height = 1080;
-
   try {
+    // Fetch image from Unsplash
     const resUnsplash = await fetch(`https://api.unsplash.com/photos/random?query=nature&orientation=squarish&client_id=${UNSPLASH_ACCESS_KEY}`);
-    const data = await resUnsplash.json();
-    const imageUrl = data?.urls?.regular;
 
-    if (!imageUrl) throw new Error('Could not get image from Unsplash');
+    let image;
+    if (resUnsplash.ok) {
+      const data = await resUnsplash.json();
+      const imageUrl = data?.urls?.regular;
 
-    const imageRes = await fetch(imageUrl);
-    const buffer = Buffer.from(await imageRes.arrayBuffer());
-    const image = await loadImage(buffer);
+      if (!imageUrl) throw new Error('Could not get image URL from Unsplash response');
 
-    const canvas = createCanvas(width, height);
+      // Load image from URL
+      const imageRes = await fetch(imageUrl);
+      const buffer = Buffer.from(await imageRes.arrayBuffer());
+      image = await loadImage(buffer);
+
+    } else {
+      // Handle rate limit or error response
+      const text = await resUnsplash.text();
+      console.warn(`Unsplash API error: ${text}`);
+
+      // Load fallback local image instead
+      image = await loadImage(FALLBACK_IMAGE_PATH);
+    }
+
+    // Prepare canvas and draw
+    const canvas = createCanvas(WIDTH, HEIGHT);
     const ctx = canvas.getContext('2d');
 
-    ctx.drawImage(image, 0, 0, width, height);
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'; // black overlay 80%
-    ctx.fillRect(0, 0, width, height);
+    // Draw background image
+    ctx.drawImage(image, 0, 0, WIDTH, HEIGHT);
 
+    // Draw black overlay with 80% opacity
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+    // Draw quote text
     ctx.fillStyle = 'white';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
@@ -69,17 +90,19 @@ app.get('/generate', async (req, res) => {
       return y + lines.length * lineHeight;
     }
 
-    const quoteBottom = wrapText(quoteText, width / 2, 350, 900, 60);
+    const quoteBottom = wrapText(quoteText, WIDTH / 2, 350, 900, 60);
 
+    // Draw author text
     ctx.font = '36px "Fira Code"';
-    ctx.fillText(`– ${authorName}`, width / 2, quoteBottom + 30);
+    ctx.fillText(`– ${authorName}`, WIDTH / 2, quoteBottom + 30);
 
     // Send image as JPEG in response
     res.set('Content-Type', 'image/jpeg');
     canvas.createJPEGStream().pipe(res);
 
   } catch (error) {
-    res.status(500).send({ error: error.message });
+    console.error(error);
+    res.status(500).send({ error: error.message || 'Internal Server Error' });
   }
 });
 
