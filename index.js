@@ -30,7 +30,7 @@ app.get('/generate', async (req, res) => {
     ctx.drawImage(image, 0, 0, WIDTH, HEIGHT);
 
     // Draw black overlay with 80% opacity
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
     // Draw quote text
