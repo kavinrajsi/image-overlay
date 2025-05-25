@@ -1,5 +1,4 @@
 import express from 'express';
-import fetch from 'node-fetch';
 import { createCanvas, loadImage, registerFont } from 'canvas';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -10,12 +9,6 @@ registerFont('./fonts/FiraCode-Medium.ttf', { family: 'Fira Code' });
 
 const app = express();
 const port = process.env.PORT || 3000;
-const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY;
-
-if (!UNSPLASH_ACCESS_KEY) {
-  console.error('Missing UNSPLASH_ACCESS_KEY');
-  process.exit(1);
-}
 
 const WIDTH = 1080;
 const HEIGHT = 1080;
@@ -26,35 +19,14 @@ app.get('/generate', async (req, res) => {
   const authorName = req.query.author || 'John Lennon';
 
   try {
-    // Fetch image from Unsplash
-    const resUnsplash = await fetch(`https://api.unsplash.com/photos/random?query=nature&orientation=squarish&client_id=${UNSPLASH_ACCESS_KEY}`);
-
-    let image;
-    if (resUnsplash.ok) {
-      const data = await resUnsplash.json();
-      const imageUrl = data?.urls?.regular;
-
-      if (!imageUrl) throw new Error('Could not get image URL from Unsplash response');
-
-      // Load image from URL
-      const imageRes = await fetch(imageUrl);
-      const buffer = Buffer.from(await imageRes.arrayBuffer());
-      image = await loadImage(buffer);
-
-    } else {
-      // Handle rate limit or error response
-      const text = await resUnsplash.text();
-      console.warn(`Unsplash API error: ${text}`);
-
-      // Load fallback local image instead
-      image = await loadImage(FALLBACK_IMAGE_PATH);
-    }
+    // Load fallback image locally
+    const image = await loadImage(FALLBACK_IMAGE_PATH);
 
     // Prepare canvas and draw
     const canvas = createCanvas(WIDTH, HEIGHT);
     const ctx = canvas.getContext('2d');
 
-    // Draw background image
+    // Draw fallback image as background
     ctx.drawImage(image, 0, 0, WIDTH, HEIGHT);
 
     // Draw black overlay with 80% opacity
