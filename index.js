@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-registerFont('./fonts/FiraCode-Regular.ttf', { family: 'Fira Code' });
+registerFont('./fonts/FiraCode-Medium.ttf', { family: 'Fira Code' });
 
 const app = express();
 const port = process.env.PORT || 3000;
